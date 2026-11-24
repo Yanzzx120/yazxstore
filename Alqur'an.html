@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Al-Qur'an Digital</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Amiri&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #0d0d0d;
+  --text: #ffffff;
+  --input-bg: #1a1a1a;
+  --box: #141414;
+  --highlight: #00ffc8;
+  --shadow: 0 0 15px rgba(0,255,200,0.4);
+}
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background 0.4s, color 0.4s;
+}
+header {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+  background-color: var(--box);
+  box-shadow: var(--shadow);
+}
+header h1 {
+  font-family: 'Amiri', serif;
+  font-size: 2.5rem;
+  color: var(--highlight);
+  text-shadow: 0 0 10px rgba(0,255,200,0.6);
+  margin-bottom: 0.5rem;
+}
+#waktuSholat {
+  font-size: 1.3rem;
+  color: var(--highlight);
+  margin-bottom: 0.8rem;
+}
+.search-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.search-bar {
+  background-color: var(--input-bg);
+  border: none;
+  border-radius: 25px;
+  padding: 0.6rem 1rem;
+  color: var(--text);
+  width: 250px;
+  font-size: 1rem;
+  box-shadow: inset 0 0 5px rgba(0,255,200,0.2);
+  transition: 0.3s;
+}
+.search-bar:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0,255,200,0.6);
+}
+.nav-buttons {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.nav-button {
+  background-color: var(--input-bg);
+  border: 1px solid #333;
+  color: var(--highlight);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.nav-button:hover {
+  background-color: var(--highlight);
+  color: black;
+  box-shadow: var(--shadow);
+}
+.dropdown-list {
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  margin: 0.5rem auto;
+  display: none;
+  width: 90%;
+  max-width: 300px;
+}
+.dropdown-list button {
+  background-color: #222;
+  color: #fff;
+  border: none;
+  padding: 0.5rem;
+  margin: 2px 0;
+  border-radius: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.dropdown-list button:hover {
+  background-color: var(--highlight);
+  color: black;
+}
+.content {
+  padding: 2rem;
+  max-width: 800px;
+  margin: auto;
+}
+.ayah {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--box);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.ayah:hover {
+  box-shadow: var(--shadow);
+}
+.arabic {
+  font-size: 1.8rem;
+  text-align: right;
+  margin-bottom: 0.5rem;
+  font-family: 'Amiri', serif;
+}
+.latin {
+  font-size: 1rem;
+  color: #ccc;
+}
+.translation {
+  font-size: 1rem;
+  color: #aaa;
+}
+.basmalah {
+  text-align: center;
+  font-size: 1.5rem;
+  color: var(--highlight);
+  margin: 1.5rem 0;
+}
+#toTop {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--highlight);
+  color: black;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Al-Qur'an Digital</h1>
+  <div id="waktuSholat">Memuat jadwal...</div>
+  <div class="search-wrapper">
+    <input type="text" class="search-bar" id="searchInput" placeholder="Cari surat..." oninput="filterSurah()" />
+  </div>
+  <div class="nav-buttons">
+    <button class="nav-button" onclick="showSuratDropdown()">Surat</button>
+    <button class="nav-button" onclick="showJuzDropdown()">Juz</button>
+    <button class="nav-button" onclick="showAyatHarian()">Ayat Harian</button>
+    <button class="nav-button" onclick="showFavorit()">Favorit</button>
+    <button class="nav-button" onclick="toggleTheme()">🌙/☀</button>
+  </div>
+</header>
+
+<div id="dropdownSurat" class="dropdown-list"></div>
+<div id="dropdownJuz" class="dropdown-list"></div>
+
+<main class="content" id="quranContent">
+  <p style="color: gray;">Gunakan pencarian atau pilih surat untuk melihat isi Al-Qur'an.</p>
+</main>
+
+<audio id="ayahPlayer" controls style="display:none;"></audio>
+<button id="toTop" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆</button>
+
+<script>
+let surahDataGlobal = [];
+let favoritList = JSON.parse(localStorage.getItem("favoritSurat") || "[]");
+let lastRead = JSON.parse(localStorage.getItem("lastRead") || "null");
+
+window.onscroll = () => {
+  document.getElementById("toTop").style.display = window.scrollY > 200 ? "block" : "none";
+};
+
+// === Waktu Sholat (Aladhan API) ===
+async function getWaktuSholat() {
+  try {
+    const res = await fetch("https://api.aladhan.com/v1/timingsByCity?city=Sukabumi&country=Indonesia&method=20");
+    const data = await res.json();
+    const timings = data.data.timings;
+
+    const list = [
+      `Subuh ${timings.Fajr}`,
+      `Dzuhur ${timings.Dhuhr}`,
+      `Ashar ${timings.Asr}`,
+      `Maghrib ${timings.Maghrib}`,
+      `Isya ${timings.Isha}`
+    ];
+
+    let idx = 0;
+    const el = document.getElementById("waktuSholat");
+    el.textContent = "⏰ " + list[idx];
+    setInterval(() => {
+      idx = (idx + 1) % list.length;
+      el.textContent = "⏰ " + list[idx];
+    }, 3000);
+
+  } catch (err) {
+    document.getElementById("waktuSholat").textContent = "Gagal memuat jadwal";
+    console.error(err);
+  }
+}
+getWaktuSholat();
+
+// === Quran Functions ===
+async function fetchAllSurahs() {
+  const res = await fetch("https://api.quran.gading.dev/surah");
+  const data = await res.json();
+  surahDataGlobal = data.data;
+  generateSuratList();
+}
+function showSuratDropdown() {
+  toggleDropdown("dropdownSurat");
+}
+function showJuzDropdown() {
+  const dropdown = document.getElementById("dropdownJuz");
+  dropdown.innerHTML = "";
+  for(let i=1;i<=30;i++){
+    const btn = document.createElement("button");
+    btn.textContent = "Juz " + i;
+    btn.onclick = () => alert("Fitur Juz " + i + " coming soon");
+    dropdown.appendChild(btn);
+  }
+  toggleDropdown("dropdownJuz");
+}
+function toggleDropdown(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === "block" ? "none" : "block";
+}
+function generateSuratList() {
+  const dropdown = document.getElementById("dropdownSurat");
+  dropdown.innerHTML = "";
+  surahDataGlobal.forEach(surah => {
+    const btn = document.createElement("button");
+    btn.textContent = `${surah.number}. ${surah.name.transliteration.id}`;
+    btn.onclick = () => {
+      renderSurat(surah.number);
+      dropdown.style.display = "none";
+    };
+    dropdown.appendChild(btn);
+  });
+}
+function filterSurah() {
+  const keyword = document.getElementById("searchInput").value.toLowerCase();
+  const filtered = surahDataGlobal.find(s =>
+    s.name.transliteration.id.toLowerCase().includes(keyword)
+  );
+  if (filtered) renderSurat(filtered.number);
+}
+async function renderSurat(number, ayatIndex=null) {
+  const container = document.getElementById("quranContent");
+  container.innerHTML = "<p style='color: gray;'>Memuat...</p>";
+  const res = await fetch(`https://api.quran.gading.dev/surah/${number}`);
+  const data = await res.json();
+  const surat = data.data;
+
+  localStorage.setItem("lastRead", JSON.stringify({ number, name: surat.name.transliteration.id }));
+
+  let basmalah = "";
+  if (surat.preBismillah && surat.number !== 9) {
+    basmalah = `<div class="basmalah">${surat.preBismillah.text.arab}</div>`;
+  }
+
+  container.innerHTML = `
+    <section>
+      <h2 style="color: var(--highlight); font-size: 1.5rem; border-bottom: 1px solid #444; padding-bottom: 0.5rem;">
+        ${surat.number}. ${surat.name.transliteration.id}
+        <button style="float:right;background:var(--highlight);color:black;border:none;border-radius:8px;padding:0.3rem 0.6rem;cursor:pointer" onclick="tambahFavorit(event, ${surat.number}, '${surat.name.transliteration.id}')">★</button>
+      </h2>
+      <p class="latin">${surat.name.translation.id} - ${surat.revelation.id}</p>
+      <button onclick="playAllAyat(${number})" style="background-color:#00ffc8;color:black;padding:0.5rem 1rem;border:none;border-radius:10px;cursor:pointer;margin:1rem 0;">▶ Play Surat</button>
+      ${basmalah}
+      ${surat.verses.map((ayah, index) => `
+        <div id="ayah-${index}" class="ayah" onclick="playAyah('${ayah.audio.primary}', ${index})">
+          <div class="arabic">${ayah.text.arab}</div>
+          <div class="latin">(${index + 1}) ${ayah.text.transliteration.en}</div>
+          <div class="translation">${ayah.translation.id}</div>
+          <button style="margin-top:5px;background:var(--highlight);color:black;border:none;border-radius:6px;padding:0.3rem 0.6rem;cursor:pointer" onclick="shareAyah(event, '${ayah.text.arab}', '${ayah.translation.id}')">Share</button>
+        </div>
+      `).join("")}
+    </section>
+  `;
+
+  if (ayatIndex !== null) {
+    document.getElementById(`ayah-${ayatIndex}`)?.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+}
+function playAyah(url, idx) {
+  const player = document.getElementById("ayahPlayer");
+  player.src = url;
+  player.style.display = "block";
+  player.play();
+  document.querySelectorAll(".ayah").forEach(a=>a.style.boxShadow="none");
+  document.getElementById(`ayah-${idx}`).style.boxShadow = "0 0 15px rgba(0,255,200,0.8)";
+}
+async function playAllAyat(number) {
+  const res = await fetch(`https://api.quran.gading.dev/surah/${number}`);
+  const data = await res.json();
+  const audios = data.data.verses.map(v => v.audio.primary);
+  const player = document.getElementById("ayahPlayer");
+  let idx = 0;
+  player.style.display = "block";
+  player.src = audios[idx];
+  player.play();
+  player.onended = function () {
+    idx++;
+    if (idx < audios.length) {
+      player.src = audios[idx];
+      player.play();
+      document.querySelectorAll(".ayah").forEach(a=>a.style.boxShadow="none");
+      document.getElementById(`ayah-${idx}`).scrollIntoView({behavior:"smooth", block:"center"});
+      document.getElementById(`ayah-${idx}`).style.boxShadow = "0 0 15px rgba(0,255,200,0.8)";
+    }
+  };
+}
+function tambahFavorit(e, num, name) {
+  e.stopPropagation();
+  const index = favoritList.findIndex(f => f.num === num);
+  if (index === -1) {
+    favoritList.push({ num, name });
+    alert("Ditambahkan ke favorit!");
+  } else {
+    favoritList.splice(index, 1);
+    alert("Dihapus dari favorit!");
+  }
+  localStorage.setItem("favoritSurat", JSON.stringify(favoritList));
+}
+function showFavorit() {
+  const container = document.getElementById("quranContent");
+  if (favoritList.length === 0) {
+    container.innerHTML = "<p style='color:gray'>Belum ada surat favorit</p>";
+  } else {
+    container.innerHTML = `<h2 style="color:var(--highlight)">Favorit</h2>` +
+      favoritList.map(f => `<button class="nav-button" onclick="renderSurat(${f.num})">${f.num}. ${f.name}</button>`).join("");
+  }
+}
+async function showAyatHarian() {
+  const res = await fetch(`https://api.quran.gading.dev/surah/${Math.floor(Math.random()*114)+1}`);
+  const data = await res.json();
+  const surat = data.data;
+  const randomAyat = surat.verses[Math.floor(Math.random()*surat.verses.length)];
+  document.getElementById("quranContent").innerHTML = `
+    <h2 style="color:var(--highlight)">Ayat Hari Ini</h2>
+    <div class="ayah">
+      <div class="arabic">${randomAyat.text.arab}</div>
+      <div class="translation">${randomAyat.translation.id}</div>
+    </div>
+  `;
+}
+function toggleTheme() {
+  if (document.body.style.backgroundColor === "white") {
+    document.body.style.backgroundColor = "var(--bg)";
+    document.body.style.color = "var(--text)";
+  } else {
+    document.body.style.backgroundColor = "white";
+    document.body.style.color = "black";
+  }
+}
+function shareAyah(e, arab, terjemah) {
+  e.stopPropagation();
+  const text = `${arab}\n${terjemah}`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, "_blank");
+}
+if (lastRead) {
+  document.getElementById("quranContent").innerHTML += `
+    <div style="margin-top:1rem;">
+      <button onclick="renderSurat(${lastRead.number})" style="background:var(--highlight);color:black;padding:0.5rem 1rem;border:none;border-radius:8px;cursor:pointer;">📖 Lanjut Baca ${lastRead.name}</button>
+    </div>
+  `;
+}
+fetchAllSurahs();
+</script>
+</body>
+</html>
